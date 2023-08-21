@@ -33,13 +33,10 @@ int main()
   Console::puts("Initialized console.\n");
   Console::puts("\n");
 
-  Console::puts("Replace the following <NAME> field with your name.\n");
-  Console::puts("After your are done admiring your output, you can shutdown this 'machine'.\n");
-  Console::puts("\n");
   Console::puts("WELCOME TO MY KERNEL!\n");
   Console::puts("      ");
   Console::set_TextColor(GREEN, RED);
-  Console::puts("<NAME>\n");
+  Console::puts("CALEB NORTON\n");
   
   /* -- LOOP FOREVER! */
   for(;;);
