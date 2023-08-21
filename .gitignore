@@ -1,6 +1,9 @@
 # object files
 *.o
 
-#binary files
+# binary files
 *.bin
+
+# ELF files
+*.elf
 
