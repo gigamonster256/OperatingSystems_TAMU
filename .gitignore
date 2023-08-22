@@ -7,3 +7,8 @@
 # ELF files
 *.elf
 
+# writeup files
+*.pdf
+*.docx
+
+
