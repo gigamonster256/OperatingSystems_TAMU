@@ -4,11 +4,12 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
 	exit 1
 fi
 
-# find the common directory
-# this is the directory containing this script
-common_dir=$(dirname $(readlink -f ${0}))
+# find the relative path to the common directory
+# This is the beginning part of the path to the symlink script
+common_dir=${${0}%/$(basename ${0})}
 
-# symlink everything in the common directory to the current directory
+# symlink everythingeitive path 
+# n the common directory to the current directory
 # except for this script
 for file in $(ls ${common_dir} | grep -v $(basename ${0})); do
 	ln -fs ${common_dir}/${file} ${file}

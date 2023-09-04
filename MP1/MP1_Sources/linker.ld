@@ -1,1 +1,1 @@
-/Users/caleb/Documents/csce611/common/linker.ld
+../../common/linker.ld
