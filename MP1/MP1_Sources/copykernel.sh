@@ -1,1 +1,1 @@
-../../common/copykernel.sh
+/Users/caleb/Documents/csce611/common/copykernel.sh
