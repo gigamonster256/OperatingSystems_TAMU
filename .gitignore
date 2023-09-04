@@ -11,4 +11,8 @@
 *.pdf
 *.docx
 
+# zip files
+*.zip
 
+# text files
+*.txt
