@@ -16,3 +16,5 @@
 
 # text files
 *.txt
+# but not readme
+!README.TXT
