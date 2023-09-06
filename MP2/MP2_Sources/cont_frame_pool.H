@@ -41,17 +41,26 @@
 class ContFramePool {
     
 private:
-    /* -- DEFINE YOUR CONT FRAME POOL DATA STRUCTURE(s) HERE. */
-    
-    
+    unsigned char *bitmap; // bitmap of frame states
+	unsigned long info_frame_no; // number of frame used to store management info
+
+	unsigned long base_frame_no; // number of first frame managed by this frame pool
+	unsigned long n_frames; // the number of frames that this pool is responsible for
+	ContFramePool *next; // pointer to previous head of list of ContFramePools
+
+	static ContFramePool *frame_pool_list_head; // head of list of all ContFramePools
+												// shared across all instances of ContFramePool
     
     /* ---- STATE MANAGEMENT */
     
-    enum class FrameState {Free, Used, HoS};
+    enum class FrameState {Free, HeadOfSequence, Used, Inaccessible};
 
-    FrameState get_state(unsigned long _frame_no);
-    void set_state(unsigned long _frame_no, FrameState _state);
-    
+    FrameState get_state(unsigned long _rel_frame_no);
+    void set_state(unsigned long _rel_frame_no, FrameState _state);
+
+	void release_frames_internal(unsigned long _first_frame_no);
+
+	static ContFramePool *find_frame_pool(unsigned long _frame_no); 
     
 public:
 
@@ -75,6 +84,8 @@ public:
      NOTE: This function must be called before the paging system
      is initialized.
      */
+
+	~ContFramePool(); // destructor
     
     unsigned long get_frames(unsigned int _n_frames);
     /*

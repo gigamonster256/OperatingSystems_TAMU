@@ -74,7 +74,7 @@ int main() {
 
     /* ---- PROCESS POOL -- */
 
-/*
+
     unsigned long n_info_frames = ContFramePool::needed_info_frames(PROCESS_POOL_SIZE);
 
     unsigned long process_mem_pool_info_frame = kernel_mem_pool.get_frames(n_info_frames);
@@ -84,7 +84,7 @@ int main() {
                                    process_mem_pool_info_frame);
     
     process_mem_pool.mark_inaccessible(MEM_HOLE_START_FRAME, MEM_HOLE_SIZE);
-*/
+
     /* -- MOST OF WHAT WE NEED IS SETUP. THE KERNEL CAN START. */
 
     Console::puts("Hello World!\n");
@@ -93,7 +93,17 @@ int main() {
     
     test_memory(&kernel_mem_pool, 32);
 
-    /* ---- Add code here to test the frame pool implementation. */
+	/* -- TEST PROCESS ALLOCATOR */
+
+	// Testing repeatedly helps to ensure that the allocator is not
+	// leaking memory.
+	for (int i = 32; i < 37; i++) {
+		test_memory(&process_mem_pool, i);
+	}
+
+	/* -- TEST KERNEL ALLOCATOR AGAIN*/
+
+	test_memory(&kernel_mem_pool, 32);
     
     /* -- NOW LOOP FOREVER */
     Console::puts("Testing is DONE. We will do nothing forever\n");
