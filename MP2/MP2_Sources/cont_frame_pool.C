@@ -135,6 +135,16 @@ ContFramePool::ContFramePool(unsigned long _base_frame_no,
 	// make sure that we will own at least one frame
 	assert(_n_frames > 0);
 
+	// look for base frame number collisions
+	ContFramePool* pool = find_frame_pool(_base_frame_no);
+
+	// assert that we didn't find a frame pool
+	assert(pool == NULL);
+
+	// TODO: we should check for collisions with inner frames as well
+	// but that would be expensive checking the entire range one by one
+	// and the current API doesnt support ranges
+
 	// the number of frames that we need to store state
 	// must be at least 1 less than the number of frames
 	// that we will manage otherwise, all the frames
