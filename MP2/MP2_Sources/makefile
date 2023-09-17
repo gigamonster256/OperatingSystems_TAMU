@@ -21,7 +21,7 @@ assert.o: assert.C assert.H
 
 # ==== VARIOUS LOW-LEVEL STUFF =====
 
-machine.o: machine.C machine.H
+machine.o: machine.C machine.H machine_low.H
 	$(GCC) $(GCC_OPTIONS) -c -o machine.o machine.C
 
 machine_low.o: machine_low.asm machine_low.H
@@ -39,7 +39,7 @@ cont_frame_pool.o: cont_frame_pool.C cont_frame_pool.H
 
 # ==== KERNEL MAIN FILE =====
 
-kernel.o: kernel.C  
+kernel.o: kernel.C machine.H console.H assert.H cont_frame_pool.H
 	$(GCC) $(GCC_OPTIONS) -c -o kernel.o kernel.C
 
 kernel.elf: start.o utils.o kernel.o assert.o console.o \
