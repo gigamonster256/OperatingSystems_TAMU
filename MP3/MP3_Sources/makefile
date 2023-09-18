@@ -2,12 +2,12 @@ AS=nasm
 GCC=i386-elf-gcc
 LD=i386-elf-ld
 
-GCC_OPTIONS = -m32 -nostdlib -fno-builtin -nostartfiles -nodefaultlibs -fno-exceptions -fno-rtti -fno-stack-protector -fleading-underscore -fno-asynchronous-unwind-tables
+GCC_OPTIONS = -m32 -nostdlib -fno-builtin -nostartfiles -nodefaultlibs -fno-exceptions -fno-rtti -fno-stack-protector -fleading-underscore -fno-asynchronous-unwind-tables -g
 
-all: kernel.bin
+all: kernel.eg
 
 clean:
-	rm -f *.o *.bin
+	rm -f *.o *.bin *.elf
 
 start.o: start.asm gdt_low.asm idt_low.asm irq_low.asm
 	nasm -f elf -o start.o start.asm
@@ -24,11 +24,11 @@ assert.o: assert.C assert.H
 gdt.o: gdt.C gdt.H
 	$(GCC) $(GCC_OPTIONS) -c -o gdt.o gdt.C
 
-machine.o: machine.C machine.H
+machine.o: machine.C machine.H machine_low.H
 	$(GCC) $(GCC_OPTIONS) -c -o machine.o machine.C
 
 machine_low.o: machine_low.asm machine_low.H
-	nasm -f elf -o machine_low.o machine_low.asm
+	$(AS) -f elf -o machine_low.o machine_low.asm
 
 # ==== EXCEPTIONS AND INTERRUPTS =====
 
@@ -72,10 +72,10 @@ kernel.o: kernel.C console.H simple_timer.H page_table.H
 	$(GCC) $(GCC_OPTIONS) -c -o kernel.o kernel.C
 
 
-kernel.bin: start.o utils.o kernel.o assert.o console.o gdt.o idt.o irq.o exceptions.o \
+kernel.elf: start.o utils.o kernel.o assert.o console.o gdt.o idt.o irq.o exceptions.o \
    interrupts.o simple_timer.o simple_keyboard.o paging_low.o page_table.o cont_frame_pool.o machine.o \
    machine_low.o 
-	$(LD) -melf_i386 -T linker.ld -o kernel.bin start.o utils.o kernel.o assert.o console.o \
+	$(LD) -melf_i386 -T linker.ld -o kernel.elf start.o utils.o kernel.o assert.o console.o \
    gdt.o idt.o irq.o exceptions.o \
    interrupts.o simple_timer.o simple_keyboard.o paging_low.o page_table.o cont_frame_pool.o machine.o \
    machine_low.o
