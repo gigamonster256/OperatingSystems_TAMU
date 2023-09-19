@@ -4,7 +4,7 @@ LD=i386-elf-ld
 
 GCC_OPTIONS = -m32 -nostdlib -fno-builtin -nostartfiles -nodefaultlibs -fno-exceptions -fno-rtti -fno-stack-protector -fleading-underscore -fno-asynchronous-unwind-tables -g
 
-all: kernel.eg
+all: kernel.elf
 
 clean:
 	rm -f *.o *.bin *.elf
