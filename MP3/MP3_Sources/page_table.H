@@ -47,9 +47,33 @@ private:
   static ContFramePool * kernel_mem_pool;    /* Frame pool for the kernel memory */
   static ContFramePool * process_mem_pool;   /* Frame pool for the process memory */
   static unsigned long   shared_size;        /* size of shared address space */
+  static unsigned long   shared_page_table_frame; /* frame number of the shared page tables */
+  static bool			 initialized;		 /* is the system set up for paging? */
+  
+  typedef struct _PTE {
+	  union {
+		  struct{
+			unsigned long present : 1;
+			unsigned long read_write : 1;
+			unsigned long user_supervisor : 1;
+			unsigned long reserved : 2;
+			unsigned long accessed : 1;
+			unsigned long dirty : 1;
+			unsigned long reserved2 : 2;
+			unsigned long available : 3;
+			unsigned long page_frame : 20;
+		  };
+		  unsigned long raw;
+	  };
+	  _PTE() : raw(0) {}
+  } PTE;
+  static_assert(sizeof(PTE) == sizeof(unsigned long), "PTE size is not 4 bytes");
 
-  /* DATA FOR CURRENT PAGE TABLE */
-  unsigned long        * page_directory;     /* where is page directory located? */
+  typedef PTE PDE;
+
+/* DATA FOR CURRENT PAGE TABLE */
+  PDE * page_directory;     /* where is page directory located? */
+
 
 public:
   static const unsigned int PAGE_SIZE        = Machine::PAGE_SIZE; 
