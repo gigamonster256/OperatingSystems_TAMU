@@ -23,7 +23,7 @@ floppya: 1_44=dev_kernel_grub.img, status=inserted
 #config_interface: textconfig
 #config_interface: wx
 
-#display_library: x
+display_library: sdl2
 # other choices: win32 sdl wx carbon amigaos beos macintosh nogui rfb term svga
 
 # where do we send log messages?
@@ -45,5 +45,5 @@ mouse: enabled=0
 #keyboard_mapping: enabled=1, map=$BXSHARE/keymaps/x11-pc-es.map
 
 # enable gdb stub
-gdbstub: enabled=1, port=1234, text_base=0, data_base=0, bss_base=0
+#gdbstub: enabled=1, port=1234, text_base=0, data_base=0, bss_base=0
 
