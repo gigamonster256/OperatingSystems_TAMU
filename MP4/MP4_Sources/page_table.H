@@ -106,6 +106,11 @@ public:
      memory is accessed by addressing physical memory directly. After paging is
      enabled, memory is addressed logically. */
 
+  // helpers to resolve recursive page table entries
+  static PDE & get_PDE(const unsigned long virtual_address);
+  static PTE * get_PT(const unsigned long virtual_address);
+  static PTE & get_PTE(const unsigned long virtual_address);
+
   static void handle_fault(REGS * _r);
   /* The page fault handler. */
 

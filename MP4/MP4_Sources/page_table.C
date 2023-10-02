@@ -17,6 +17,7 @@ void PageTable::init_paging(ContFramePool * _kernel_mem_pool,
                             const unsigned long _shared_size)
 {
 	assert(!initialized);
+	assert((read_cr0() & 0x80000000) == 0);
 	assert(_kernel_mem_pool != NULL);
 	assert(_process_mem_pool != NULL);
 	kernel_mem_pool = _kernel_mem_pool;
@@ -51,7 +52,6 @@ void PageTable::init_paging(ContFramePool * _kernel_mem_pool,
 PageTable::PageTable()
 {
 	assert(initialized);
-	// we must be in physical addressing mode
 	assert((read_cr0() & 0x80000000) == 0);
 	// get a frame for the page directory
 	unsigned long page_directory_frame = process_mem_pool->get_frames(1);
@@ -96,15 +96,35 @@ void PageTable::enable_paging()
    write_cr0(read_cr0() | 0x80000000);
 }
 
+PageTable::PDE & PageTable::get_PDE(const unsigned long virtual_address)
+{
+	assert(read_cr0() & 0x80000000);
+	unsigned long pd_index = virtual_address >> 22;
+	unsigned long PD_address = 0x3ff << 22 | 0x3ff << 12;
+	return ((PDE *)PD_address)[pd_index];
+}
+
+PageTable::PTE * PageTable::get_PT(const unsigned long virtual_address)
+{
+	assert(read_cr0() & 0x80000000);
+	unsigned long pd_index = virtual_address >> 22;
+	unsigned long PT_address = 0x3ff << 22 | pd_index << 12;
+	return (PTE *)PT_address;
+}
+
+PageTable::PTE & PageTable::get_PTE(const unsigned long virtual_address)
+{
+	assert(read_cr0() & 0x80000000);
+	PTE * PT = get_PT(virtual_address);
+	unsigned long pt_index = (virtual_address >> 12) & 0x3ff;
+	return PT[pt_index];
+}
+
 void PageTable::handle_fault(REGS * _r)
 {
 	unsigned long fault_address = read_cr2();
-	unsigned long pd_index = fault_address >> 22;
-	unsigned long pt_index = (fault_address >> 12) & 0x3ff;
-	// calculate logical address of PD (recursive lookup)
-	unsigned long PD_address = 0x3ff << 22 | 0x3ff << 12;
 	// get reference to PDE that faulted
-	PDE & pde = ((PDE *)PD_address)[pd_index];
+	PDE & pde = get_PDE(fault_address);
 	// if not present, allocate a page table
 	if (!pde.present)
 	{
@@ -115,24 +135,19 @@ void PageTable::handle_fault(REGS * _r)
 		pde.present = 1;
 		pde.page_frame = page_table_frame;
 
-		// calculate logical address of PT (recursive lookup)
-		unsigned long PT_address = 0x3ff << 22 | pd_index << 12;
-
 		// clear the page table
-		PTE * page_table = (PTE *)PT_address;	
+		PTE * page_table = get_PT(fault_address);
 		for (unsigned long i = 0; i < ENTRIES_PER_PAGE; i++)
 		{
 			page_table[i] = PTE();
 		}
 
 		// set up last entry to point to page table itself
-		page_table[1023].present = 1;
-		page_table[1023].page_frame = page_table_frame;
+		page_table[ENTRIES_PER_PAGE - 1].present = 1;
+		page_table[ENTRIES_PER_PAGE - 1].page_frame = page_table_frame;
 	}
-	// calculate logical address of PT (recursive lookup)
-	unsigned long PT_address = 0x3ff << 22 | pd_index << 12;
 	// get reference to PTE that faulted
-	PTE & pte = ((PTE *)PT_address)[pt_index];
+	PTE & pte = get_PTE(fault_address);
 	assert(!pte.present);
 
 	// get a frame for the page
