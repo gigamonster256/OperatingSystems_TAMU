@@ -51,14 +51,16 @@ void PageTable::init_paging(ContFramePool * _kernel_mem_pool,
 PageTable::PageTable()
 {
 	assert(initialized);
+	// we must be in physical addressing mode
+	assert((read_cr0() & 0x80000000) == 0);
 	// get a frame for the page directory
-	unsigned long page_directory_frame = kernel_mem_pool->get_frames(1);
+	unsigned long page_directory_frame = process_mem_pool->get_frames(1);
 	
 	// and convert to page directory
 	page_directory = (PDE *)(page_directory_frame * PAGE_SIZE);
-
+	
 	// set up page directory
-	for (unsigned long i = 0; i < ENTRIES_PER_PAGE; i++)
+	for (unsigned long i = 0; i < ENTRIES_PER_PAGE - 1; i++)
 	{
 		page_directory[i] = PDE();
 	}
@@ -73,6 +75,10 @@ PageTable::PageTable()
 		page_directory[i].present = 1;
 		page_directory[i].page_frame = shared_page_table_frame + i;
 	}
+	
+	// set up last entry to point to page directory itself
+	page_directory[1023].present = 1;
+	page_directory[1023].page_frame = page_directory_frame;
 }
 
 
@@ -95,36 +101,45 @@ void PageTable::handle_fault(REGS * _r)
 	unsigned long fault_address = read_cr2();
 	unsigned long pd_index = fault_address >> 22;
 	unsigned long pt_index = (fault_address >> 12) & 0x3ff;
-	// get PDE for address
-	PDE * pde = &current_page_table->page_directory[pd_index];
-	if (!pde->present)
+	// calculate logical address of PD (recursive lookup)
+	unsigned long PD_address = 0x3ff << 22 | 0x3ff << 12;
+	// get reference to PDE that faulted
+	PDE & pde = ((PDE *)PD_address)[pd_index];
+	// if not present, allocate a page table
+	if (!pde.present)
 	{
-		// get a frame for the page table (page faults always allocate in this implementation)
-		unsigned long page_table_frame = kernel_mem_pool->get_frames(1);
-		// and convert to page table
-		PTE * page_table = (PTE *)(page_table_frame * PAGE_SIZE);
-		
+		// get a frame for the page table
+		unsigned long page_table_frame = process_mem_pool->get_frames(1);
+
+		// set up the PDE so the page table is mapped
+		pde.present = 1;
+		pde.page_frame = page_table_frame;
+
+		// calculate logical address of PT (recursive lookup)
+		unsigned long PT_address = 0x3ff << 22 | pd_index << 12;
+
 		// clear the page table
+		PTE * page_table = (PTE *)PT_address;	
 		for (unsigned long i = 0; i < ENTRIES_PER_PAGE; i++)
 		{
 			page_table[i] = PTE();
 		}
 
-		pde->present = 1;
-		// could there be a race condition here if two processes fault at
-		// same virtual address (or 2 threads)? something here to think about
-		pde->page_frame = page_table_frame;
+		// set up last entry to point to page table itself
+		page_table[1023].present = 1;
+		page_table[1023].page_frame = page_table_frame;
 	}
-	// get PTE for address (should never be present)
-	PTE * pt = (PTE *)(pde->page_frame * PAGE_SIZE);
-	PTE * pte = &pt[pt_index];
-	assert(!pte->present);
+	// calculate logical address of PT (recursive lookup)
+	unsigned long PT_address = 0x3ff << 22 | pd_index << 12;
+	// get reference to PTE that faulted
+	PTE & pte = ((PTE *)PT_address)[pt_index];
+	assert(!pte.present);
 
 	// get a frame for the page
 	unsigned long page_frame = process_mem_pool->get_frames(1);
 
 	// set up the PTE
-	pte->present = 1;
-	pte->page_frame = page_frame;
+	pte.present = 1;
+	pte.page_frame = page_frame;
 }
 
