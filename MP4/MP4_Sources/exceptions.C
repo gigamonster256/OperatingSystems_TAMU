@@ -135,9 +135,9 @@ void ExceptionHandler::dispatch_exception(REGS * _r) {
   /* -- EXCEPTION NUMBER */
   unsigned int exc_no = _r->int_no;
 
-  Console::puts("EXCEPTION DISPATCHER: exc_no = ");
-  Console::putui(exc_no);
-  Console::puts("\n");
+  // Console::puts("EXCEPTION DISPATCHER: exc_no = ");
+  // Console::putui(exc_no);
+  // Console::puts("\n");
 
   assert((exc_no >= 0) && (exc_no < EXCEPTION_TABLE_SIZE));
 
