@@ -31,6 +31,8 @@
 /* FORWARDS */
 /*--------------------------------------------------------------------------*/
 
+class VMPool;
+
 /* -- (none) -- */
 
 /*--------------------------------------------------------------------------*/
@@ -72,14 +74,20 @@ private:
   typedef PTE PDE;
 
 /* DATA FOR CURRENT PAGE TABLE */
-  PDE * page_directory;     /* where is page directory located? */
+  PDE * page_directory;     /* where is page directory located? physical address*/
+  VMPool * vm_pool_head;         /* base memory pool for this page table */
 
 
 public:
+  // type definitions
+  typedef Machine::physical_addr physical_addr;
+  typedef Machine::virtual_addr virtual_addr;
+
   static const unsigned int PAGE_SIZE        = Machine::PAGE_SIZE; 
   /* in bytes */
   static const unsigned int ENTRIES_PER_PAGE = Machine::PT_ENTRIES_PER_PAGE; 
   /* in entries, duh! */
+  static const unsigned int INIT_VM_MASK = 0x80000000;
 
   static void init_paging(ContFramePool * _kernel_mem_pool,
                           ContFramePool * _process_mem_pool,
@@ -107,12 +115,18 @@ public:
      enabled, memory is addressed logically. */
 
   // helpers to resolve recursive page table entries
-  static PDE & get_PDE(const unsigned long virtual_address);
-  static PTE * get_PT(const unsigned long virtual_address);
-  static PTE & get_PTE(const unsigned long virtual_address);
+  static PDE & get_PDE(const virtual_addr va);
+  static PTE * get_PT(const virtual_addr va);
+  static PTE & get_PTE(const virtual_addr va);
 
   static void handle_fault(REGS * _r);
   /* The page fault handler. */
+
+  void register_pool(VMPool * _vm_pool);
+  /* Register a virtual memory pool with the page table. */
+
+  void free_pages(const virtual_addr va, const unsigned long size);
+  /* If page is valid, release frame and mark page invalid. */
 
 };
 

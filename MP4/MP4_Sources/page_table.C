@@ -3,6 +3,7 @@
 #include "console.H"
 #include "paging_low.H"
 #include "page_table.H"
+#include "vm_pool.H"
 
 PageTable * PageTable::current_page_table = NULL;
 unsigned int PageTable::paging_enabled = 0;
@@ -17,7 +18,7 @@ void PageTable::init_paging(ContFramePool * _kernel_mem_pool,
                             const unsigned long _shared_size)
 {
 	assert(!initialized);
-	assert((read_cr0() & 0x80000000) == 0);
+	assert((read_cr0() & INIT_VM_MASK) == 0);
 	assert(_kernel_mem_pool != NULL);
 	assert(_process_mem_pool != NULL);
 	kernel_mem_pool = _kernel_mem_pool;
@@ -52,7 +53,8 @@ void PageTable::init_paging(ContFramePool * _kernel_mem_pool,
 PageTable::PageTable()
 {
 	assert(initialized);
-	assert((read_cr0() & 0x80000000) == 0);
+	assert((read_cr0() & INIT_VM_MASK) == 0);
+	vm_pool_head = NULL;
 	// get a frame for the page directory
 	unsigned long page_directory_frame = process_mem_pool->get_frames(1);
 	
@@ -77,8 +79,8 @@ PageTable::PageTable()
 	}
 	
 	// set up last entry to point to page directory itself
-	page_directory[1023].present = 1;
-	page_directory[1023].page_frame = page_directory_frame;
+	page_directory[ENTRIES_PER_PAGE - 1].present = 1;
+	page_directory[ENTRIES_PER_PAGE - 1].page_frame = page_directory_frame;
 }
 
 
@@ -93,43 +95,61 @@ void PageTable::load()
 void PageTable::enable_paging()
 {
    // set CR0 top bit to enable paging
-   write_cr0(read_cr0() | 0x80000000);
+   write_cr0(read_cr0() | INIT_VM_MASK);
 }
 
-PageTable::PDE & PageTable::get_PDE(const unsigned long virtual_address)
+PageTable::PDE & PageTable::get_PDE(const virtual_addr va)
 {
-	assert(read_cr0() & 0x80000000);
-	unsigned long pd_index = virtual_address >> 22;
+	assert(read_cr0() & INIT_VM_MASK);
+	unsigned long pd_index = va >> 22;
 	unsigned long PD_address = 0x3ff << 22 | 0x3ff << 12;
 	return ((PDE *)PD_address)[pd_index];
 }
 
-PageTable::PTE * PageTable::get_PT(const unsigned long virtual_address)
+PageTable::PTE * PageTable::get_PT(const virtual_addr va)
 {
-	assert(read_cr0() & 0x80000000);
-	unsigned long pd_index = virtual_address >> 22;
+	assert(read_cr0() & INIT_VM_MASK);
+	unsigned long pd_index = va >> 22;
 	unsigned long PT_address = 0x3ff << 22 | pd_index << 12;
 	return (PTE *)PT_address;
 }
 
-PageTable::PTE & PageTable::get_PTE(const unsigned long virtual_address)
+PageTable::PTE & PageTable::get_PTE(const virtual_addr va)
 {
-	assert(read_cr0() & 0x80000000);
-	PTE * PT = get_PT(virtual_address);
-	unsigned long pt_index = (virtual_address >> 12) & 0x3ff;
+	assert(read_cr0() & INIT_VM_MASK);
+	PTE * PT = get_PT(va);
+	unsigned long pt_index = (va >> 12) & 0x3ff;
 	return PT[pt_index];
 }
 
 void PageTable::handle_fault(REGS * _r)
 {
-	unsigned long fault_address = read_cr2();
+	// get VA that faulted
+	virtual_addr fault_address = read_cr2();
+	// make sure VA is allocated by a vm pool
+	VMPool * vm_pool = current_page_table->vm_pool_head;
+	while (vm_pool != NULL)
+	{
+		if (vm_pool->is_legitimate(fault_address))
+			break;
+		vm_pool = vm_pool->next;
+	}
+	if (vm_pool == NULL)
+	{
+		// TODO: throw error (segfault?)
+		Console::puts("Page fault at ");
+		Console::putui(fault_address);
+		Console::puts("\n");
+		Console::puts("VA was not allocated by a VM pool registered to this PageTable\n");
+		assert(false);
+	}
 	// get reference to PDE that faulted
 	PDE & pde = get_PDE(fault_address);
 	// if not present, allocate a page table
 	if (!pde.present)
 	{
-		// get a frame for the page table
-		unsigned long page_table_frame = process_mem_pool->get_frames(1);
+		// get a frame for the page table from the backing vm pool
+		unsigned long page_table_frame = vm_pool->frame_pool->get_frames(1);
 
 		// set up the PDE so the page table is mapped
 		pde.present = 1;
@@ -150,11 +170,37 @@ void PageTable::handle_fault(REGS * _r)
 	PTE & pte = get_PTE(fault_address);
 	assert(!pte.present);
 
-	// get a frame for the page
-	unsigned long page_frame = process_mem_pool->get_frames(1);
+	// get a frame for the page from the backing vm pool
+	unsigned long page_frame = vm_pool->frame_pool->get_frames(1);
 
 	// set up the PTE
 	pte.present = 1;
 	pte.page_frame = page_frame;
 }
 
+void PageTable::register_pool(VMPool * _vm_pool)
+{
+	// should probably check to make sure VM pools don't overlap
+	if (vm_pool_head == NULL)
+		vm_pool_head = _vm_pool;
+	else {
+		_vm_pool->next = vm_pool_head;
+		vm_pool_head = _vm_pool;
+	}
+}
+
+void PageTable::free_pages(virtual_addr va, unsigned long size)
+{
+	for (unsigned long i = 0; i < size; i += PAGE_SIZE)
+	{
+		PTE & pte = get_PTE(va + i);
+		if (!pte.present)
+			continue;
+		// free the frame
+		ContFramePool::release_frames(pte.page_frame);
+		// clear the PTE
+		pte = PTE();
+	}
+	// flush tlb
+	load();
+}

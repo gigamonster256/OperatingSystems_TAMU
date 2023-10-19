@@ -89,6 +89,8 @@ public:
 
   static const unsigned int PAGE_SIZE = 4096;
   static const unsigned int PT_ENTRIES_PER_PAGE = 1024;
+  typedef unsigned long physical_addr;
+  typedef unsigned long virtual_addr;
 
 /*---------------------------------------------------------------*/
 /* INTERRUPTS */
