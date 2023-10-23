@@ -126,7 +126,8 @@ public:
   /* Register a virtual memory pool with the page table. */
 
   void free_pages(const virtual_addr va, const unsigned long size);
-  /* If page is valid, release frame and mark page invalid. */
+  /* If page is valid, release frame and mark page invalid. 
+	NOTE: this interface was changed so that only 1 TLB flush occurs per deallocation instead of one for each allocated page in the allocation range*/
 
 };
 
