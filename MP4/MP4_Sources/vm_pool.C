@@ -85,7 +85,7 @@ VMPool::VMPool(virtual_addr  _base_address,
 	allocated_regions = (RegionEntry*)(_base_address + (MANAGEMENT_PAGES / 2) * PAGE_SIZE);
 
 	// zero all region entries
-	for (unsigned long i = 0; i < MANAGEMENT_PAGES * PAGE_SIZE / sizeof(RegionEntry); i++) {
+	for (unsigned long i = 1; i < MANAGEMENT_PAGES * PAGE_SIZE / sizeof(RegionEntry); i++) {
 		free_regions[i] = RegionEntry();
 	}
 
@@ -134,14 +134,14 @@ unsigned long VMPool::allocate(unsigned long _size) {
 					return allocated_regions[j].start_address;
 				}
 			}
-			// if we get here then out allocated regions are full due to fragmentation
+			// if we get here then all allocated region entries are used due to fragmentation
 			assert(false);
 		}
 	}
 	// if we get here, we couldn't find a free region large enough due to 
 	// fragmentation or too small of available memory
 	assert(false);
-	return 0;
+	return 0; // make compiler happy
 }
 
 void VMPool::release(virtual_addr _start_address) {
@@ -174,7 +174,7 @@ void VMPool::release(virtual_addr _start_address) {
 					return;
 				}
 			}
-			// if we get here then our free regions are full due to fragmentation
+			// if we get here then all free region entries are used due to fragmentation
 			assert(false);
 		}
 	}
@@ -183,9 +183,10 @@ void VMPool::release(virtual_addr _start_address) {
 }
 
 bool VMPool::is_legitimate(virtual_addr _address) {
+	// make sure address is within our pool
 	if (_address < base_address) return false;
 	if (_address >= base_address + size * PAGE_SIZE) return false;
-	// first 2 pages are always valid (for ourselves)
+	// first few pages are always valid (for ourselves)
 	if (_address < base_address + MANAGEMENT_PAGES * PAGE_SIZE) return true;
 	// anything else we need to make sure it has been allocated
 	// loop over the allocated region entries
