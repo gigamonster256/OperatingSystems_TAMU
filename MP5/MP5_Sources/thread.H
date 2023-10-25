@@ -85,6 +85,9 @@ public:
     static Thread * CurrentThread();
     /* Returns the currently running thread. NULL if no thread has started 
        yet. */
+	
+	void fork(Thread_Function _tf, char * _stack, unsigned int _stack_size);
+	// allows a thread to fork a new thread in the same process
 };
 
 #endif

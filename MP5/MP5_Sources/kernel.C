@@ -23,21 +23,18 @@
 
 /* -- COMMENT/UNCOMMENT THE FOLLOWING LINE TO EXCLUDE/INCLUDE SCHEDULER CODE */
 
-//#define _USES_SCHEDULER_
-/* This macro is defined when we want to force the code below to use
-   a scheduler.
-   Otherwise, no scheduler is used, and the threads pass control to each
-   other in a co-routine fashion.
-*/
+#define GB * (0x1 << 30)
+#define MB * (0x1 << 20)
+#define KB * (0x1 << 10)
+#define KERNEL_POOL_START_FRAME ((2 MB) / Machine::PAGE_SIZE)
+#define KERNEL_POOL_SIZE ((2 MB) / Machine::PAGE_SIZE)
+#define PROCESS_POOL_START_FRAME ((4 MB) / Machine::PAGE_SIZE)
+#define PROCESS_POOL_SIZE ((28 MB) / Machine::PAGE_SIZE)
+/* definition of the kernel and process memory pools */
 
-
-/* -- UNCOMMENT THE FOLLOWING LINE TO MAKE THREADS TERMINATING */
-
-//#define _TERMINATING_FUNCTIONS_
-/* This macro is defined when we want the thread functions to return, and so
-   terminate their thread.
-   Otherwise, the thread functions don't return, and the threads run forever.
-*/
+#define MEM_HOLE_START_FRAME ((15 MB) / Machine::PAGE_SIZE)
+#define MEM_HOLE_SIZE ((1 MB) / Machine::PAGE_SIZE)
+/* we have a 1 MB hole in physical memory starting at address 15 MB */
 
 /*--------------------------------------------------------------------------*/
 /* INCLUDES */
@@ -53,78 +50,29 @@
 
 #include "simple_timer.H"    /* TIMER MANAGEMENT  */
 
-#include "frame_pool.H"      /* MEMORY MANAGEMENT */
-#include "mem_pool.H"
+#include "cont_frame_pool.H"      /* MEMORY MANAGEMENT */
+#include "vm_pool.H"
+#include "memory_manager.H"
 
 #include "thread.H"          /* THREAD MANAGEMENT */
+#include "process.H"         /* PROCESS MANAGEMENT */
+#include "rr_scheduler.H"
 
-#ifdef _USES_SCHEDULER_
-#include "scheduler.H"
-#endif
 
-/*--------------------------------------------------------------------------*/
-/* MEMORY MANAGEMENT */
-/*--------------------------------------------------------------------------*/
-
-/* -- A POOL OF FRAMES FOR THE SYSTEM TO USE */
-FramePool * SYSTEM_FRAME_POOL;
-
-/* -- A POOL OF CONTIGUOUS MEMORY FOR THE SYSTEM TO USE */
-MemPool * MEMORY_POOL;
-
-typedef long unsigned int size_t;
-
-//replace the operator "new"
-void * operator new (size_t size) {
-    unsigned long a = MEMORY_POOL->allocate((unsigned long)size);
-    return (void *)a;
-}
-
-//replace the operator "new[]"
-void * operator new[] (size_t size) {
-    unsigned long a = MEMORY_POOL->allocate((unsigned long)size);
-    return (void *)a;
-}
-
-//replace the operator "delete"
-void operator delete (void * p, size_t s) {
-    MEMORY_POOL->release((unsigned long)p);
-}
-
-//replace the operator "delete[]"
-void operator delete[] (void * p) {
-    MEMORY_POOL->release((unsigned long)p);
-}
-
-/*--------------------------------------------------------------------------*/
 /* SCHEDULRE and AUXILIARY HAND-OFF FUNCTION FROM CURRENT THREAD TO NEXT */
 /*--------------------------------------------------------------------------*/
-
-#ifdef _USES_SCHEDULER_
 
 /* -- A POINTER TO THE SYSTEM SCHEDULER */
 Scheduler * SYSTEM_SCHEDULER;
 
-#endif
 
 void pass_on_CPU(Thread * _to_thread) {
-  // Hand over CPU from current thread to _to_thread.
-  
-#ifndef _USES_SCHEDULER_
-
-        /* We don't use a scheduler. Explicitely pass control to the next
-           thread in a co-routine fashion. */
-	Thread::dispatch_to(_to_thread);
-
-#else
-
         /* We use a scheduler. Instead of dispatching to the next thread,
            we pre-empt the current thread by putting it onto the ready
            queue and yielding the CPU. */
 
         SYSTEM_SCHEDULER->resume(Thread::CurrentThread());
         SYSTEM_SCHEDULER->yield();
-#endif
 }
 
 /*--------------------------------------------------------------------------*/
@@ -201,6 +149,40 @@ void fun4() {
     }
 }
 
+ContFramePool * kernel_pool = NULL;
+
+void colonel() {
+	Console::puts("Colonel process running!\n");	
+	for(;;);
+    unsigned long n_info_frames =
+      ContFramePool::needed_info_frames(PROCESS_POOL_SIZE);
+
+    unsigned long process_mem_pool_info_frame =
+      kernel_pool->get_frames(n_info_frames);
+
+    ContFramePool process_mem_pool(PROCESS_POOL_START_FRAME,
+                                   PROCESS_POOL_SIZE,
+                                   process_mem_pool_info_frame);
+
+    /* Take care of the hole in the memory. */
+    process_mem_pool.mark_inaccessible(MEM_HOLE_START_FRAME, MEM_HOLE_SIZE);
+	/* ---- INSTALL PAGE FAULT HANDLER -- */
+
+    class PageFault_Handler : public ExceptionHandler {
+      /* We derive the page fault handler from ExceptionHandler
+	 and overload the method handle_exception. */
+      public:
+      virtual void handle_exception(REGS * _regs) {
+        PageTable::handle_fault(_regs);
+      }
+    } pagefault_handler;
+
+    /* ---- Register the page fault handler for exception no. 14
+            with the exception dispatcher. */
+	Console::puts("Registering page fault handler...\n");
+    ExceptionHandler::register_handler(14, &pagefault_handler);
+}
+
 /*--------------------------------------------------------------------------*/
 /* MAIN ENTRY INTO THE OS */
 /*--------------------------------------------------------------------------*/
@@ -217,103 +199,74 @@ int main() {
     /* -- SEND OUTPUT TO TERMINAL -- */ 
     Console::output_redirection(true);
 
-    /* -- EXAMPLE OF AN EXCEPTION HANDLER -- */
-
-    class DBZ_Handler : public ExceptionHandler {
-      public:
-      virtual void handle_exception(REGS * _regs) {
-        Console::puts("DIVISION BY ZERO!\n");
-        for(;;);
-      }
-    } dbz_handler;
-
-    ExceptionHandler::register_handler(0, &dbz_handler);
-
-
-    /* -- INITIALIZE MEMORY -- */
-    /*    NOTE: We don't have paging enabled in this MP. */
-    /*    NOTE2: This is not an exercise in memory management. The implementation
-                of the memory management is accordingly *very* primitive! */
-
-    /* ---- Initialize a frame pool; details are in its implementation */
-    FramePool system_frame_pool;
-    SYSTEM_FRAME_POOL = &system_frame_pool;
-   
-    /* ---- Create a memory pool of 256 frames. */
-    MemPool memory_pool(SYSTEM_FRAME_POOL, 256);
-    MEMORY_POOL = &memory_pool;
-
-    /* -- MEMORY ALLOCATOR IS INITIALIZED. WE CAN USE new/delete! --*/
-
     /* -- INITIALIZE THE TIMER (we use a very simple timer).-- */
 
-    /* Question: Why do we want a timer? We have it to make sure that 
-                 we enable interrupts correctly. If we forget to do it,
-                 the timer "dies". */
-
-    SimpleTimer timer(100); /* timer ticks every 10ms. */
+    SimpleTimer timer(100000); /* timer ticks every 1s. */
     InterruptHandler::register_handler(0, &timer);
-    /* The Timer is implemented as an interrupt handler. */
 
-#ifdef _USES_SCHEDULER_
 
-    /* -- SCHEDULER -- IF YOU HAVE ONE -- */
- 
-    SYSTEM_SCHEDULER = new Scheduler();
+	/* -- INITIALIZE FRAME POOLS -- */
 
-#endif
+    ContFramePool kernel_mem_pool(KERNEL_POOL_START_FRAME,
+                                  KERNEL_POOL_SIZE,
+                                  0);
+	// make kernel pool global (for colonel)
+	kernel_pool = &kernel_mem_pool;
 
-    /* NOTE: The timer chip starts periodically firing as
-             soon as we enable interrupts.
-             It is important to install a timer handler, as we
-             would get a lot of uncaptured interrupts otherwise. */ 
+	// set up page fault handler
+	class PageFault_Handler : public ExceptionHandler {
+      /* We derive the page fault handler from ExceptionHandler
+	 and overload the method handle_exception. */
+      public:
+      virtual void handle_exception(REGS * _regs) {
+        PageTable::handle_fault(_regs);
+      }
+    } pagefault_handler;
 
-    /* -- ENABLE INTERRUPTS -- */
+    /* ---- Register the page fault handler for exception no. 14
+            with the exception dispatcher. */
+    ExceptionHandler::register_handler(14, &pagefault_handler);
 
-    Machine::enable_interrupts();
+	// init colonel page table
+	Console::puts("Initializing page table...\n");
+    PageTable::init_paging(kernel_pool, 4 MB);
 
-    /* -- MOST OF WHAT WE NEED IS SETUP. THE KERNEL CAN START. */
+	// place colonel page directory in kernel pool
+	PageTable colonel_pt(kernel_pool);
+
+	// load colonel page directory
+	colonel_pt.load();
+
+	// enable paging
+	PageTable::enable_paging();
 
     Console::puts("Hello World!\n");
 
-    /* -- LET'S CREATE SOME THREADS... */
+	// create a VMPool for colonel heap (located in kernel pool)
+	Console::puts("Creating VMPool for colonel...\n");
+	VMPool colonel_heap(512 MB, 256 MB, kernel_pool, &colonel_pt);
 
-    Console::puts("CREATING THREAD 1...\n");
-    char * stack1 = new char[1024];
-    thread1 = new Thread(fun1, stack1, 1024);
-    Console::puts("DONE\n");
+	// load the VMPool into the MemoryManager (this allows new to work)
+	Console::puts("Loading colonel VMPool into MemoryManager...\n");
+	MemoryManager::load(&colonel_heap);
 
-    Console::puts("CREATING THREAD 2...");
-    char * stack2 = new char[1024];
-    thread2 = new Thread(fun2, stack2, 1024);
-    Console::puts("DONE\n");
+	// create the colonel process
+	Console::puts("Creating colonel process...\n");
+	Process * colonel_process = new Process(colonel, 1024, &colonel_pt);
+	
+	// constructing scheduler
+	Console::puts("Creating Round Robin scheduler...\n");
+    SYSTEM_SCHEDULER = new RRScheduler();
 
-    Console::puts("CREATING THREAD 3...");
-    char * stack3 = new char[1024];
-    thread3 = new Thread(fun3, stack3, 1024);
-    Console::puts("DONE\n");
-
-    Console::puts("CREATING THREAD 4...");
-    char * stack4 = new char[1024];
-    thread4 = new Thread(fun4, stack4, 1024);
-    Console::puts("DONE\n");
-
-#ifdef _USES_SCHEDULER_
-
-    /* WE ADD thread2 - thread4 TO THE READY QUEUE OF THE SCHEDULER. */
-
-    SYSTEM_SCHEDULER->add(thread2);
-    SYSTEM_SCHEDULER->add(thread3);
-    SYSTEM_SCHEDULER->add(thread4);
-
-#endif
-
-    /* -- KICK-OFF THREAD1 ... */
-
-    Console::puts("STARTING THREAD 1 ...\n");
-    Thread::dispatch_to(thread1);
-
-    /* -- AND ALL THE REST SHOULD FOLLOW ... */
+	// enable interrupts to that timer can start
+	// and create preemptive environment
+    Machine::enable_interrupts();
+	
+	Console::puts("Adding colonel process to scheduler...\n");
+	for(;;);
+	SYSTEM_SCHEDULER->add(colonel_process);
+	Console::puts("Starting scheduler...\n");
+	SYSTEM_SCHEDULER->yield();
 
     assert(false); /* WE SHOULD NEVER REACH THIS POINT. */
 

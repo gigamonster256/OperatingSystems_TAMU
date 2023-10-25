@@ -217,6 +217,14 @@ void Console::putui(const unsigned int _n) {
   putch('>');
 }
 
+void Console::putva(const VirtualAddress& _va) {
+  char foostr[15];
+
+  uint2str(_va.address(), foostr);
+  putch('V');
+  puts(foostr);
+}
+
 
 /* -- COLOR CONTROL -- */
 void Console::set_TextColor(const unsigned char _forecolor, 

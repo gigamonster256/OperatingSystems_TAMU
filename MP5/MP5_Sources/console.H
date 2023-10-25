@@ -31,6 +31,8 @@
 #ifndef _Console_H_                   // include file only once
 #define _Console_H_
 
+#include "virtual_address.H"
+
 /*--------------------------------------------------------------------------*/
 /* DEFINES */
 /*--------------------------------------------------------------------------*/
@@ -112,6 +114,9 @@ public:
 
   static void putui(const unsigned int _u);
   /* Display a unsigned integer on the screen.*/
+
+  static void putva(const VirtualAddress& _va);
+  // printing a virtual address
 
   static void set_TextColor(unsigned char _fore_color, unsigned char _back_color);
   /* Set the color of the foreground and background. */

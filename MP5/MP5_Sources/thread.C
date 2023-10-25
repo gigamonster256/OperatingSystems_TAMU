@@ -31,7 +31,7 @@
 #include "assert.H"
 #include "console.H"
 
-#include "frame_pool.H"
+#include "cont_frame_pool.H"
 
 #include "thread.H"
 

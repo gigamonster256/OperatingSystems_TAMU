@@ -46,7 +46,6 @@
 /*--------------------------------------------------------------------------*/
 
 Scheduler::Scheduler() {
-  assert(false);
   Console::puts("Constructed Scheduler.\n");
 }
 
@@ -58,10 +57,10 @@ void Scheduler::resume(Thread * _thread) {
   assert(false);
 }
 
-void Scheduler::add(Thread * _thread) {
+void Scheduler::add(Process * _thread) {
   assert(false);
 }
 
-void Scheduler::terminate(Thread * _thread) {
+void Scheduler::terminate(Process * _thread) {
   assert(false);
 }

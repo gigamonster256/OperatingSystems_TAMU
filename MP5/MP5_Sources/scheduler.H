@@ -19,6 +19,7 @@
 /* INCLUDES */
 /*--------------------------------------------------------------------------*/
 
+#include "process.H"
 #include "thread.H"
 
 /*--------------------------------------------------------------------------*/
@@ -59,13 +60,9 @@ class Scheduler {
   /* The scheduler may need private members... */
   
 public:
-
-   Scheduler();
-   /* Setup the scheduler. This sets up the ready queue, for example.
-      If the scheduler implements some sort of round-robin scheme, then the 
-      end_of_quantum handler is installed in the constructor as well. */
-
-   /* NOTE: We are making all functions virtual. This may come in handy when
+	Scheduler();
+   
+	/* NOTE: We are making all functions virtual. This may come in handy when
             you want to derive RRScheduler from this class. */
   
    virtual void yield();
@@ -79,16 +76,16 @@ public:
       for threads that were waiting for an event to happen, or that have 
       to give up the CPU in response to a preemption. */
 
-   virtual void add(Thread * _thread);
+   virtual void add(Process * _process);
    /* Make the given thread runnable by the scheduler. This function is called
       after thread creation. Depending on implementation, this function may 
       just add the thread to the ready queue, using 'resume'. */
 
-   virtual void terminate(Thread * _thread);
+   virtual void terminate(Process * _process);
    /* Remove the given thread from the scheduler in preparation for destruction
       of the thread. 
       Graciously handle the case where the thread wants to terminate itself.*/
-  
+
 };
 	
 	

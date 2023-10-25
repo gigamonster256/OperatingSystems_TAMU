@@ -4,10 +4,12 @@
 class VirtualAddress
 {
 private:
-	unsigned int _address;
+	unsigned long _address;
 
 public:
 	VirtualAddress(unsigned int address) : _address(address) {}
+	unsigned long address() const { return _address; }
+	VirtualAddress offset(unsigned int offset) const { return VirtualAddress(_address + offset); }
 
 	bool operator<(const VirtualAddress& other) const { return _address < other._address; }
 	bool operator>(const VirtualAddress& other) const { return _address > other._address; }
