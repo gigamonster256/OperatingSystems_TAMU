@@ -36,6 +36,7 @@
 #include "thread.H"
 
 #include "threads_low.H"
+#include "scheduler.H"
 
 /*--------------------------------------------------------------------------*/
 /* EXTERNS */
@@ -44,6 +45,7 @@
 Thread * current_thread = 0;
 /* Pointer to the currently running thread. This is used by the scheduler,
    for example. */
+extern Scheduler * SYSTEM_SCHEDULER;
 
 /* -------------------------------------------------------------------------*/
 /* LOCAL DATA PRIVATE TO THREAD AND DISPATCHER CODE */
@@ -73,7 +75,7 @@ static void thread_shutdown() {
        This is a bit complicated because the thread termination interacts with the scheduler.
      */
 
-    assert(false);
+	SYSTEM_SCHEDULER->terminate(Thread::CurrentThread());
     /* Let's not worry about it for now. 
        This means that we should have non-terminating thread functions. 
     */
@@ -177,6 +179,7 @@ Thread::Thread(Thread_Function _tf, char * _stack, unsigned int _stack_size) {
 
     stack = _stack;
     stack_size = _stack_size;
+	cargo = NULL;
     
     /* -- INITIALIZE THE STACK OF THE THREAD */
 
@@ -186,6 +189,18 @@ Thread::Thread(Thread_Function _tf, char * _stack, unsigned int _stack_size) {
 
 int Thread::ThreadId() {
     return thread_id;
+}
+
+char * Thread::cargoPointer() {
+	return cargo;
+}
+
+void Thread::setCargo(char * _cargo) {
+	cargo = _cargo;
+}
+
+char* Thread::stackPointer() {
+	return stack;
 }
 
 void Thread::dispatch_to(Thread * _thread) {

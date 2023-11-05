@@ -56,7 +56,8 @@
 
 class Scheduler {
 
-  /* The scheduler may need private members... */
+	Thread * next_thread;
+	virtual Thread * thread_after(Thread * thread);
   
 public:
 
