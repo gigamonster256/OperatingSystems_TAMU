@@ -4,10 +4,10 @@ LD=i386-elf-ld
 
 GCC_OPTIONS = -m32 -nostdlib -fno-builtin -nostartfiles -nodefaultlibs -fno-exceptions -fno-rtti -fno-stack-protector -fleading-underscore -fno-asynchronous-unwind-tables
 
-all: kernel.bin
+all: kernel.elf
 
 clean:
-	rm -f *.o *.bin
+	rm -f *.o *.bin *.elf
 
 start.o: start.asm gdt_low.asm idt_low.asm irq_low.asm
 	$(AS) -f elf -o start.o start.asm
@@ -85,12 +85,12 @@ thread.o: thread.C thread.H threads_low.H
 kernel.o: kernel.C machine.H console.H gdt.H idt.H irq.H exceptions.H interrupts.H simple_timer.H frame_pool.H mem_pool.H thread.H simple_disk.H
 	$(GCC) $(GCC_OPTIONS) -c -o kernel.o kernel.C
 
-kernel.bin: start.o utils.o kernel.o \
+kernel.elf : start.o utils.o kernel.o \
    assert.o console.o gdt.o idt.o irq.o exceptions.o \
    interrupts.o simple_timer.o simple_keyboard.o frame_pool.o mem_pool.o \
    thread.o threads_low.o simple_disk.o blocking_disk.o \
     machine.o machine_low.o 
-	$(LD) -melf_i386 -T linker.ld -o kernel.bin start.o utils.o kernel.o \
+	$(LD) -melf_i386 -T linker.ld -o kernel.elf start.o utils.o kernel.o \
    assert.o console.o gdt.o idt.o irq.o exceptions.o interrupts.o \
    simple_timer.o simple_keyboard.o frame_pool.o mem_pool.o \
    thread.o threads_low.o simple_disk.o blocking_disk.o \
