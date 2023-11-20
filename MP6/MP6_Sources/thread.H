@@ -75,6 +75,12 @@ public:
     int ThreadId();
     /* Returns the thread id of the thread. */
 
+	char * cargoPointer();
+
+	void setCargo(char * _cargo); // set the cargo
+
+	char * stackPointer(); // returns the stack pointer of the thread (for cleanup)
+
     static void dispatch_to(Thread * _thread);
     /* This is the low-level dispatch function that invokes the context switch
        code. This function is used by the scheduler.
