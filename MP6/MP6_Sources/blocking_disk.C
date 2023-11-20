@@ -23,6 +23,14 @@
 #include "console.H"
 #include "blocking_disk.H"
 
+#include "thread.H"
+
+/*--------------------------------------------------------------------------*/
+/* SCHEDULING */
+/*--------------------------------------------------------------------------*/
+
+extern void pass_on_CPU(Thread *);
+
 /*--------------------------------------------------------------------------*/
 /* CONSTRUCTOR */
 /*--------------------------------------------------------------------------*/
@@ -31,18 +39,8 @@ BlockingDisk::BlockingDisk(DISK_ID _disk_id, unsigned int _size)
   : SimpleDisk(_disk_id, _size) {
 }
 
-/*--------------------------------------------------------------------------*/
-/* SIMPLE_DISK FUNCTIONS */
-/*--------------------------------------------------------------------------*/
-
-void BlockingDisk::read(unsigned long _block_no, unsigned char * _buf) {
-  // -- REPLACE THIS!!!
-  SimpleDisk::read(_block_no, _buf);
-
-}
-
-
-void BlockingDisk::write(unsigned long _block_no, unsigned char * _buf) {
-  // -- REPLACE THIS!!!
-  SimpleDisk::write(_block_no, _buf);
+void BlockingDisk::wait_until_ready() {
+  while (!is_ready()) {
+	pass_on_CPU(NULL);
+  }
 }

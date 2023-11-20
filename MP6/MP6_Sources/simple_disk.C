@@ -69,8 +69,17 @@ void SimpleDisk::issue_operation(DISK_OPERATION _op, unsigned long _block_no) {
 
 }
 
+static int delay = 0;
 bool SimpleDisk::is_ready() {
-   return ((Machine::inportb(0x1F7) & 0x08) != 0);
+	// simulate a delay for at least 3 checks
+	if (delay < 3) {
+		Console::puts("Simulating disk access delay\n");
+		delay++;
+		return false;
+	}
+	bool ready = ((Machine::inportb(0x1F7) & 0x08) != 0);
+	if (ready) delay = 0;
+	return ready;
 }
 
 void SimpleDisk::read(unsigned long _block_no, unsigned char * _buf) {
