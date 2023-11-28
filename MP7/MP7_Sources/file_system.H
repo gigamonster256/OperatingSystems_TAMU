@@ -45,16 +45,18 @@ class Inode
 private:
   long id; // File "name"
 
-  /* You will need additional information in the inode, such as allocation 
-     information. */
+  long size; // File size in bytes.
+
+  long block; // Disk block that contains the file's data.
 
   FileSystem *fs; // It may be handy to have a pointer to the File system.
                   // For example when you need a new block or when you want
                   // to load or save the inode list. (Depends on your
                   // implementation.)
+public:
+  Inode();
+  Inode(long id, long size, long block, FileSystem *fs);
 
-  /* You may need a few additional functions to help read and store the 
-     inodes from and to disk. */
 };
 
 /*--------------------------------------------------------------------------*/
@@ -76,7 +78,6 @@ private:
   /* -- DEFINE YOUR FILE SYSTEM DATA STRUCTURES HERE. */
 
   SimpleDisk *disk;
-  unsigned int size;
 
   static constexpr unsigned int MAX_INODES = SimpleDisk::BLOCK_SIZE / sizeof(Inode);
   /* Just as an example, you can store MAX_INODES in a single INODES block */
@@ -91,10 +92,10 @@ private:
      If you reserve one block to store the "free list", you can handle a file system up to 
      256kB. (Large enough as a proof of concept.) */
      
-  // short GetFreeInode();
-  // int GetFreeBlock();
-  /* It may be helpful to two functions to hand out free inodes in the inode list and free
-     blocks. These functions also come useful to class Inode and File. */
+  Inode* GetFreeInode();
+  int GetFreeBlock();
+	
+  void freeBlock(int block);
 
 public:
   FileSystem();

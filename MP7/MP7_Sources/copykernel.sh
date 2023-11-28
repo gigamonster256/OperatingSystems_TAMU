@@ -1,5 +1,8 @@
-# Replace "/mnt/floppy" with the whatever directory is appropriate.
-sudo mount -o loop dev_kernel_grub.img /mnt/floppy
-sudo cp kernel.bin /mnt/floppy
-sleep 1s
-sudo umount /mnt/floppy
+attach=$(hdiutil attach dev_kernel_grub.img)
+mountpoint=${attach#* }
+# trim leading and trailing whitespace
+mountpoint=$(echo $mountpoint | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+device=${attach%% *}
+cp kernel.bin "$mountpoint"
+sleep 1
+hdiutil detach "$device" > /dev/null
