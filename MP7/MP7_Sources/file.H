@@ -45,10 +45,9 @@ class File  {
 private:
     /* -- your file data structures here ... */
     
-    /* You will need a reference to the inode, maybe even a reference to the 
-       file system. 
-       You may also want a current position, which indicates which position in 
-       the file you will read or write next. */
+	Inode *inode;
+	long current_position;
+	FileSystem *fs;
     
     unsigned char block_cache[SimpleDisk::BLOCK_SIZE];
     /* It will be helpful to have a cached copy of the block that you are reading
@@ -57,8 +56,9 @@ private:
        file, and you write the data to disk whenever you close the file. 
     */
 
-public:
+	static constexpr int MAX_FILE_SIZE = SimpleDisk::BLOCK_SIZE;
 
+public:
     File(FileSystem * _fs, int _id); 
     /* Constructor for the file handle. Set the ’current position’ to be at the 
        beginning of the file. */

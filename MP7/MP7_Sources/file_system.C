@@ -124,9 +124,19 @@ bool FileSystem::Format(SimpleDisk * _disk, unsigned int _size) { // static!
 }
 
 Inode * FileSystem::LookupFile(int _file_id) {
-    Console::puts("looking up file with id = "); Console::puti(_file_id); Console::puts("\n");
+    Console::puts("looking up file with id:"); Console::puti(_file_id); Console::puts("\n");
     /* Here you go through the inode list to find the file. */
-    assert(false);
+	// loop over all inodes
+	for (int i = 0; i < MAX_INODES; i++) {
+		// if the inode is used and has the correct id, return it
+		if (inodes[i].id == _file_id) {
+			Console::puts("found file\n");
+			return &inodes[i];
+		}
+	}
+	// if the file doesn't exist, return NULL
+	Console::puts("file not found\n");
+	return NULL;
 }
 
 bool FileSystem::CreateFile(int _file_id) {
@@ -135,11 +145,9 @@ bool FileSystem::CreateFile(int _file_id) {
        Then get yourself a free inode and initialize all the data needed for the
        new file. After this function there will be a new file on disk. */
 	// loop over all inodes and make sure the file doesn't already exist
-	for (int i = 0; i < MAX_INODES; i++) {
-		if (inodes[i].id == _file_id) {
-			Console::puts("file already exists\n");
-			return false;
-		}
+	if (LookupFile(_file_id) != NULL) {
+		Console::puts("file already exists\n");
+		return false;
 	}
 	// get a free inode
 	Inode *inode = GetFreeInode();
@@ -148,10 +156,12 @@ bool FileSystem::CreateFile(int _file_id) {
 		Console::puts("no free inodes\n");
 		return false;
 	}
+	// get a block for the data
+	int block = GetFreeBlock();
 	// set the inode info
 	inode->id = _file_id;
 	inode->size = 0;
-	inode->block = -1;
+	inode->block = block;
 	inode->fs = this;
 
 	return true;
@@ -162,6 +172,18 @@ bool FileSystem::DeleteFile(int _file_id) {
     /* First, check if the file exists. If not, throw an error. 
        Then free all blocks that belong to the file and delete/invalidate 
        (depending on your implementation of the inode list) the inode. */
+	// get the inode for the file
+	Inode *inode = LookupFile(_file_id);
+	// if the file doesn't exist, return false
+	if (inode == NULL) {
+		Console::puts("file not found\n");
+		return false;
+	}
+	// free the data block
+	freeBlock(inode->block);
+	// invalidate the inode
+	*inode = Inode();
+	return true;
 }
 
 Inode * FileSystem::GetFreeInode() {
@@ -178,3 +200,74 @@ Inode * FileSystem::GetFreeInode() {
 	Console::puts("no free inodes\n");
 	return NULL;
 }
+
+bool FileSystem::freeBlock(int block) {
+	Console::puts("freeing block:"); Console::puti(block); Console::puts("\n");
+	// if the block is already free, return false
+	if (free_blocks[block] == 0) {
+		Console::puts("block already free\n");
+		return false;
+	}
+	// if the block is unavailable, return false
+	if (free_blocks[block] == 2) {
+		Console::puts("block unavailable\n");
+		return false;
+	}
+	// set the block to free
+	free_blocks[block] = 0;
+	return true;
+}
+
+bool FileSystem::WriteBlock(int block, unsigned char *data) {
+	Console::puts("writing block:"); Console::puti(block); Console::puts("\n");
+	// if the block is free, return false
+	if (free_blocks[block] == 0) {
+		Console::puts("block not allocated\n");
+		return false;
+	}
+	// if the block is unavailable, return false
+	if (free_blocks[block] == 2) {
+		Console::puts("block unavailable\n");
+		return false;
+	}
+	// write the data to the block
+	disk->write(block, data);
+	return true;
+}
+
+bool FileSystem::ReadBlock(int block, unsigned char *data) {
+	Console::puts("reading block:"); Console::puti(block); Console::puts("\n");
+	// if the block is free, return false
+	if (free_blocks[block] == 0) {
+		Console::puts("block not allocated\n");
+		return false;
+	}
+	// if the block is unavailable, return false
+	if (free_blocks[block] == 2) {
+		Console::puts("block unavailable\n");
+		return false;
+	}
+	// read the data from the block
+	disk->read(block, data);
+	return true;
+}
+
+int FileSystem::GetFreeBlock() {
+	Console::puts("getting free block\n");
+	// loop over all blocks (except management blocks)
+	for (int i = 2; i < SimpleDisk::BLOCK_SIZE; i++) {
+		// if the block is free, return it
+		if (free_blocks[i] == 0) {
+			Console::puts("found free block\n");
+			// mark the block as used
+			free_blocks[i] = 1;
+			return i;
+		}
+	}
+	// if there are no free blocks, return -1
+	Console::puts("no free blocks\n");
+	return -1;
+}
+
+
+

@@ -95,7 +95,7 @@ private:
   Inode* GetFreeInode();
   int GetFreeBlock();
 	
-  void freeBlock(int block);
+  bool freeBlock(int block);
 
 public:
   FileSystem();
@@ -121,5 +121,10 @@ public:
 
   bool DeleteFile(int _file_id);
   /* Delete file with given id in the file system; free any disk block occupied by the file. */
+  
+  // methods for File: breaks abstraction layer, but makes life easier
+  bool ReadBlock(int _block_id, unsigned char *_buffer);
+
+  bool WriteBlock(int _block_id, unsigned char *_buffer);
 };
 #endif
