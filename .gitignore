@@ -10,9 +10,11 @@
 # writeup files
 *.pdf
 *.docx
+!handout_mp*.pdf
 
 # zip files
 *.zip
+!MP*Sources.zip
 
 # text files
 *.txt
