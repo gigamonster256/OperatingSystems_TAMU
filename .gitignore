@@ -20,3 +20,7 @@
 *.txt
 # but not readme
 !README.TXT
+
+# nix files
+.direnv
+result
