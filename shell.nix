@@ -1,12 +1,10 @@
-{
-  pkgs,
-  selfPkgs,
-}: {
+{pkgs}: {
   default = pkgs.mkShellNoCC {
-    nativeBuildInputs = [
-      selfPkgs.i386-elf-gcc
-      selfPkgs.i386-elf-binutils
-      pkgs.nasm
+    nativeBuildInputs = with pkgs; [
+      i386-elf-gcc
+      i386-elf-binutils
+      nasm
+      bochs
     ];
   };
 }

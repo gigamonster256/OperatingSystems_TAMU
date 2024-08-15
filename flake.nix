@@ -1,5 +1,5 @@
 {
-  description = "A simple groupme discord bridge designed to be deployed on cloudflare workers";
+  description = "CSCE 611: Operating Systems";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.05";
@@ -19,16 +19,12 @@
     pkgsFor = lib.genAttrs systems (
       system: import nixpkgs {inherit system;}
     );
-    forEachSystem = f: lib.genAttrs systems (system: f pkgsFor.${system});
-  in rec {
+    forEachSystem = f: lib.genAttrs systems (system: f (pkgsFor.${system} // toolchain.${system}));
+    toolchain = forEachSystem (pkgs: import ./toolchain {inherit pkgs;});
+    MPs = forEachSystem (pkgs: import ./MPs.nix {inherit pkgs;});
+  in {
     formatter = forEachSystem (pkgs: pkgs.alejandra);
-    packages = forEachSystem (
-      pkgs: import ./toolchain {inherit pkgs;}
-    );
-    devShells = lib.mapAttrs (system: shell: shell self.packages.${system}) (
-      forEachSystem (
-        pkgs: selfPkgs: import ./shell.nix {inherit pkgs selfPkgs;}
-      )
-    );
+    packages = lib.recursiveUpdate toolchain MPs;
+    devShells = forEachSystem (pkgs: import ./shell.nix {inherit pkgs;});
   };
 }
